@@ -1,0 +1,40 @@
+pipeline:
+  name: "fire-risk-pipeline"
+
+locations:
+  - name: "A Coruña"
+    latitude: 43.3623
+    longitude: -8.4115
+  - name: "Ferrol"
+    latitude: 43.4838
+    longitude: -8.2326
+  - name: "Lugo"
+    latitude: 43.0097
+    longitude: -7.5567
+  - name: "Ourense"
+    latitude: 42.3400
+    longitude: -7.8648
+  - name: "Santiago de Compostela"
+    latitude: 42.8782
+    longitude: -8.5448
+  - name: "Pontevedra"
+    latitude: 42.4310
+    longitude: -8.6446
+  - name: "Vigo"
+    latitude: 42.2406
+    longitude: -8.7207
+
+weather:
+  daily_variables:
+    - "temperature_2m_max"
+    - "temperature_2m_min"
+    - "relative_humidity_2m_mean"
+    - "precipitation_sum"
+    - "wind_speed_10m_max"
+    - "wind_gusts_10m_max"
+    - "et0_fao_evapotranspiration"
+  timezone: "Europe/Madrid"
+
+aws:
+  bucket: "fire-risk-pipeline"
+  region: "eu-west-1"
