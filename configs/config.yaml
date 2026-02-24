@@ -87,3 +87,4 @@ risk:
     moderate: 0.4
     high: 0.6
     very_high: 0.8
+    extreme: 1.0
