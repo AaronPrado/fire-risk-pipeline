@@ -64,7 +64,7 @@ fire-risk-pipeline/
 
 - [x] Fase 1: Setup de Airflow con Docker (LocalExecutor + PostgreSQL + S3)
 - [x] Fase 2: Extracción de datos meteorológicos (capa Bronze)
-- [ ] Fase 3: Validación de datos (capa Silver)
+- [x] Fase 3: Validación de datos (capa Silver)
 - [ ] Fase 4: Cálculo de riesgo de incendio (capa Gold)
 - [ ] Fase 5: Reporting y alertas
 - [ ] Fase 6: Tests y backfill
