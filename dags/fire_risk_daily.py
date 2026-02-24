@@ -7,9 +7,11 @@ from airflow.operators.python import PythonOperator
 from datetime import datetime
 from src.extractors.open_meteo import extract_all_open_meteo
 from src.transformers.validators import validate_weather_data
+from src.transformers.risk_calculator import calculate_fire_risk
 from src.utils.config import load_config
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from io import BytesIO
+import pandas as pd
 
 def extract_and_upload(**kwargs):
     config = load_config()
@@ -40,6 +42,24 @@ def validate_and_upload(**kwargs):
         replace=True,
     )
     return f"silver/weather/{kwargs['ds']}/clean.parquet"
+
+def calculate_risk_and_upload(**kwargs):
+    config = load_config()
+    hook = S3Hook(aws_conn_id="aws_default")
+    s3_key = kwargs["ti"].xcom_pull(task_ids="validate_weather_data")
+    parquet_data = hook.get_key(key=s3_key, bucket_name=config['aws']['bucket'])
+    df = pd.read_parquet(BytesIO(parquet_data.get()["Body"].read()))
+    df_risk = calculate_fire_risk(df, config)
+    parquet_buffer = BytesIO()
+    df_risk.to_parquet(parquet_buffer)
+    parquet_buffer.seek(0)
+    hook.load_bytes(
+        bytes_data=parquet_buffer.getvalue(),
+        key=f"gold/fire_risk/{kwargs['ds']}/risk.parquet",
+        bucket_name=config['aws']['bucket'],
+        replace=True,
+    )
+    return f"gold/fire_risk/{kwargs['ds']}/risk.parquet"
     
 
 with DAG(
@@ -56,4 +76,8 @@ with DAG(
         task_id="validate_weather_data",
         python_callable=validate_and_upload,
     )
-    extract_weather_task >> validate_weather_task
+    calculate_risk_task = PythonOperator(
+        task_id="calculate_fire_risk",
+        python_callable=calculate_risk_and_upload,
+    )
+    extract_weather_task >> validate_weather_task >> calculate_risk_task
