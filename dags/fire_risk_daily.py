@@ -32,6 +32,7 @@ def validate_and_upload(**kwargs):
     json_string = hook.read_key(key=s3_key, bucket_name=config['aws']['bucket'])
     json_data = json.loads(json_string)
     validated_data = validate_weather_data(json_data)
+    validated_data = validated_data[validated_data["time"] == kwargs["ds"]]
     parquet_buffer = BytesIO()
     validated_data.to_parquet(parquet_buffer)
     parquet_buffer.seek(0)
@@ -53,13 +54,16 @@ def calculate_risk_and_upload(**kwargs):
     parquet_buffer = BytesIO()
     df_risk.to_parquet(parquet_buffer)
     parquet_buffer.seek(0)
+    ds = kwargs["ds"]
+    year, month, day = ds.split("-")
+    hive_key = f"gold/fire_risk/year={year}/month={month}/day={day}/risk.parquet"
     hook.load_bytes(
         bytes_data=parquet_buffer.getvalue(),
-        key=f"gold/fire_risk/{kwargs['ds']}/risk.parquet",
+        key=hive_key,
         bucket_name=config['aws']['bucket'],
         replace=True,
     )
-    return f"gold/fire_risk/{kwargs['ds']}/risk.parquet"
+    return hive_key
     
 
 with DAG(
