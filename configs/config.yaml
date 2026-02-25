@@ -39,6 +39,9 @@ aws:
   bucket: "fire-risk-pipeline"
   region: "eu-west-1"
 
+sns:
+  topic_arn: "arn:aws:sns:eu-west-1:306616136635:fire-risk-alerts"
+
 risk:
   normalization:
     temperature_2m_max:

@@ -9,6 +9,7 @@ from src.extractors.open_meteo import extract_all_open_meteo
 from src.transformers.validators import validate_weather_data
 from src.transformers.risk_calculator import calculate_fire_risk
 from src.utils.config import load_config
+from src.alerts.sns_alert import sns_alert
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from io import BytesIO
 import pandas as pd
@@ -64,6 +65,14 @@ def calculate_risk_and_upload(**kwargs):
         replace=True,
     )
     return hive_key
+
+def check_and_alert(**kwargs):
+    config = load_config()
+    hook = S3Hook(aws_conn_id="aws_default")
+    s3_key = kwargs["ti"].xcom_pull(task_ids="calculate_fire_risk")
+    parquet_data = hook.get_key(key=s3_key, bucket_name=config['aws']['bucket'])
+    df = pd.read_parquet(BytesIO(parquet_data.get()["Body"].read()))
+    sns_alert(df, config)
     
 
 with DAG(
@@ -84,4 +93,8 @@ with DAG(
         task_id="calculate_fire_risk",
         python_callable=calculate_risk_and_upload,
     )
-    extract_weather_task >> validate_weather_task >> calculate_risk_task
+    check_and_alert_task = PythonOperator(
+        task_id="check_and_alert",
+        python_callable=check_and_alert,
+    )
+    extract_weather_task >> validate_weather_task >> calculate_risk_task >> check_and_alert_task
