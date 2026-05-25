@@ -8,10 +8,10 @@ from chatbot.src.sql.validator import validate_sql
 
 
 def _clean_sql(text: str) -> str:
-    """Elimina bloques markdown"""
+    """Elimina bloques markdown y punto y coma final del output del LLM."""
     text = re.sub(r"```(?:sql)?\s*", "", text, flags=re.IGNORECASE)
     text = text.replace("```", "")
-    return text.strip()
+    return text.strip().rstrip(";").strip()
 
 
 def generate_sql(question: str) -> str:

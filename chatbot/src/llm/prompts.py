@@ -14,7 +14,8 @@ Reglas estrictas:
 - Solo puedes consultar la tabla fire_risk.daily_risk.
 - Si filtras por 'time', DEBES incluir siempre filtros sobre year, month y day.
 - Nunca uses funciones de fecha sobre la columna 'time'; compara siempre con string literals.
-- No uses LIMIT superior a 1000.\
+- No uses LIMIT superior a 1000.
+- No añadas filtros sobre 'time', 'year', 'month' o 'day' si la pregunta no menciona fechas.\
 """
 
 

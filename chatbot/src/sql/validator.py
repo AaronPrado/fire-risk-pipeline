@@ -19,8 +19,9 @@ def validate_sql(sql: str) -> str:
     1. Query válida sintácticamente.
     2. Solo se permiten statements SELECT.
     3. Solo se permite la tabla autorizada (fire_risk.daily_risk).
-    4. Si hay filtro sobre 'time', deben existir filtros sobre year, month y day
-       para evitar scan sobre las particiones de S3.
+    4. Si hay filtro sobre 'time':
+       - Filtro puntual (time = 'X'): exigir year, month y day.
+       - Filtro de rango (BETWEEN, >=, <=, etc.): exigir year y month.
     5. Solo se permiten columnas autorizadas.
     6. Se inyecta LIMIT MAX_LIMIT si no existe, es mayor a MAX_LIMIT o ilegible.
 
@@ -64,27 +65,45 @@ def _has_column_filter(where: exp.Where | None, column_name: str) -> bool:
     )
 
 
+_RANGE_OPERATORS = (exp.Between, exp.GT, exp.GTE, exp.LT, exp.LTE, exp.NEQ)
+
+
+def _time_filter_kind(where: exp.Where | None) -> str | None:
+    """Devuelve 'point' si time se filtra con =, 'range' si es BETWEEN/>=/<=/etc, None si no."""
+    if where is None:
+        return None
+    for node in where.walk():
+        if isinstance(node, exp.Column) and node.name.lower() == "time":
+            parent = node.parent
+            if isinstance(parent, exp.EQ):
+                return "point"
+            if isinstance(parent, _RANGE_OPERATORS):
+                return "range"
+    return None
+
+
 def _check_partition_pruning(parsed: exp.Expression) -> None:
     """
     Lanza ValidationError si hay filtro temporal sin los filtros de partición obligatorios.
 
-    Cuando se filtra por 'time', Athena haría full scan sobre todas las particiones
-    si no se añaden filtros explícitos sobre year, month y day.
+    Filtro puntual (time = 'X'): exigir year, month y day.
+    Filtro de rango (BETWEEN, >=, <=, etc.): exigir year y month (day opcional).
     """
     where = parsed.find(exp.Where)
+    kind = _time_filter_kind(where)
 
-    if not _has_column_filter(where, "time"):
-        return  # Sin filtro temporal, no aplica la regla
+    if kind is None:
+        return
 
-    partition_cols = [p["name"] for p in catalog.TABLE["partitions"]]
-    missing = [col for col in partition_cols if not _has_column_filter(where, col)]
+    required = ["year", "month", "day"] if kind == "point" else ["year", "month"]
+    missing = [col for col in required if not _has_column_filter(where, col)]
 
     if missing:
         raise ValidationError(
             f"Query rechazada: filtro sobre 'time' detectado pero faltan filtros "
             f"de partición: {missing}. "
             f"Añade filtros explícitos para evitar full scan. "
-            f"Ejemplo: AND year='2025' AND month='08' AND day='15'."
+            f"Ejemplo: AND year='2025' AND month='08'."
         )
 
 
@@ -117,9 +136,10 @@ def _check_column_whitelist(parsed: exp.Expression) -> None:
         {c["name"] for c in catalog.TABLE["columns"]}
         | {p["name"] for p in catalog.TABLE["partitions"]}
     )
+    select_aliases = {alias.alias.lower() for alias in parsed.find_all(exp.Alias) if alias.alias}
 
     for col in parsed.find_all(exp.Column):
-        if col.name.lower() not in valid_columns:
+        if col.name.lower() not in valid_columns and col.name.lower() not in select_aliases:
             raise ValidationError(
                 f"Columna no autorizada: '{col.name}'. "
                 f"Columnas permitidas: {sorted(valid_columns)}."
