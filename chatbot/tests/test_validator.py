@@ -34,7 +34,24 @@ def test_query_with_gte_filter_and_partitions_is_valid():
     )
     assert validate_sql(sql) == sql
 
-    
+
+def test_query_with_between_without_day_is_valid():
+    sql = (
+        "SELECT * FROM fire_risk.daily_risk "
+        "WHERE time BETWEEN '2025-08-01' AND '2025-08-31' "
+        "AND year='2025' AND month='08' LIMIT 100"
+    )
+    assert validate_sql(sql) == sql
+
+
+def test_query_with_gte_without_day_is_valid():
+    sql = (
+        "SELECT * FROM fire_risk.daily_risk "
+        "WHERE time >= '2025-07-01' AND year='2025' AND month='07' LIMIT 100"
+    )
+    assert validate_sql(sql) == sql
+
+
 # Queries rechazadas (falta pruning)
 
 def test_query_with_time_but_missing_year_is_rejected():
@@ -129,3 +146,11 @@ def test_injection_system_column_is_rejected():
     sql = "SELECT password FROM fire_risk.daily_risk LIMIT 10"
     with pytest.raises(ValidationError, match="Columna no autorizada"):
         validate_sql(sql)
+
+
+def test_alias_in_order_by_is_not_rejected():
+    sql = (
+        "SELECT risk_level, COUNT(*) AS days_count FROM fire_risk.daily_risk "
+        "WHERE year = '2024' GROUP BY risk_level ORDER BY days_count DESC LIMIT 1000"
+    )
+    assert validate_sql(sql) == sql
