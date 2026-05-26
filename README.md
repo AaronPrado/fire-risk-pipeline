@@ -1,12 +1,14 @@
 # Fire Risk Pipeline
 
-Pipeline ETL construido con Apache Airflow que extrae datos meteorológicos diarios de la API Open-Meteo, calcula el índice de riesgo de incendio forestal para las 7 ciudades gallegas y almacena los resultados en AWS S3 siguiendo una arquitectura medallion (Bronze/Silver/Gold). Los datos se consultan con Amazon Athena y se visualizan en un dashboard interactivo de Power BI.
+Pipeline ETL construido con Apache Airflow que extrae datos meteorológicos diarios de la API Open-Meteo, calcula el índice de riesgo de incendio forestal para las 7 ciudades gallegas y almacena los resultados en AWS S3 siguiendo una arquitectura medallion (Bronze/Silver/Gold). Los datos se consultan con Amazon Athena, se visualizan en un dashboard interactivo de Power BI, y pueden consultarse en lenguaje natural mediante un chatbot con LLM local.
 
 Proyecto complementario a [forestfire-cv-detection](https://github.com/AaronPrado/forestfire-cv-detection) (YOLOv8 + MLflow + FastAPI).
 
 ![Dashboard](docs/dashboard.png)
 
 ## Stack Tecnológico
+
+### Pipeline ETL
 
 | Componente | Tecnología |
 |---|---|
@@ -18,7 +20,18 @@ Proyecto complementario a [forestfire-cv-detection](https://github.com/AaronPrad
 | Fuente de datos | [Open-Meteo API](https://open-meteo.com/)  |
 | Contenedores | Docker + Docker Compose |
 | Lenguaje | Python 3.11 |
-| Tests | pytest|
+| Tests | pytest |
+
+### Chatbot
+
+| Componente | Tecnología |
+|---|---|
+| LLM local | Ollama + qwen2.5-coder:7b |
+| Framework LLM | LangChain 1.3.1 + langchain-ollama 1.1.0 |
+| Interfaz web | Gradio 6.14.0 |
+| Parsing SQL | sqlglot 30.8.0 |
+| Cliente Athena | pyathena 3.30.1 |
+| Lenguaje | Python 3.12 |
 
 ## Arquitectura
 
@@ -34,9 +47,10 @@ Open-Meteo API
                                     |            |
                                     v            v
                                  Athena       Email
-                                    |
-                                    v
-                                Power BI
+                                  /    \
+                                 v      v
+                            Power BI   Chatbot
+                                       (LLM local)
 ```
 
 ## Estructura del Proyecto
@@ -70,9 +84,25 @@ fire-risk-pipeline/
 │   ├── test_open_meteo.py       # Tests del cliente Open-Meteo
 │   ├── test_risk_calculator.py  # Tests del cálculo de riesgo
 │   └── test_validators.py       # Tests de validación
+├── chatbot/                     # Chatbot analítico (módulo GenAI)
+│   ├── app.py                   # Interfaz Gradio
+│   ├── eval/
+│   │   ├── few_shot_examples.jsonl  # Ejemplos para el prompt del LLM
+│   │   ├── dataset.jsonl            # Dataset de evaluación
+│   │   └── run_eval.py              # Script de evaluación de accuracy
+│   ├── src/
+│   │   ├── athena/executor.py   # Ejecución de queries en Athena
+│   │   ├── llm/
+│   │   │   ├── client.py        # Cliente Ollama (ChatOllama)
+│   │   │   ├── prompts.py       # System prompt con catálogo + few-shot
+│   │   │   └── generator.py     # Orquestador NL → SQL validado
+│   │   ├── schema/catalog.py    # Catálogo dinámico desde DDL + config.yaml
+│   │   └── sql/validator.py     # Validador de seguridad SQL
+│   ├── tests/                   # Tests con dependencias mockeadas
+│   └── requirements.txt         # Dependencias del módulo
 ├── fire-risk.pbix               # Dashboard de Power BI
-├── .env.example                 # Plantilla de variables de entorno
-└── requirements.txt             # Dependencias Python
+├── .env.example                 # Plantilla de variables de entorno (pipeline)
+└── requirements.txt             # Dependencias Python (pipeline)
 ```
 
 ## Cobertura Geográfica
@@ -158,11 +188,86 @@ El dashboard (`fire-risk.pbix`) se conecta a Athena vía ODBC y muestra:
 3. En Power BI: `Obtener datos` > `ODBC` > seleccionar el DSN
 4. En Power Query: cambiar columnas numéricas de Texto a Número Decimal y "time" a fecha
 
+## Chatbot Analítico
+
+El módulo `chatbot/` añade una interfaz conversacional sobre los datos de Athena. El usuario hace preguntas en castellano (por ejemplo, *"¿Cuál fue el día más lluvioso de 2024?"*) y el sistema genera SQL, lo ejecuta y devuelve los resultados como tabla.
+
+### Arquitectura del chatbot
+
+```
+Pregunta en castellano
+        |
+        v
+  [Gradio UI]
+        |
+        v
+  generate_sql() ──> Ollama (qwen2.5-coder:7b)
+        |
+        v
+  validate_sql() ──> Reglas de seguridad
+        |
+        v
+   run_query() ──> Amazon Athena
+        |
+        v
+  DataFrame en la UI
+```
+
+### Características de seguridad
+
+El validador SQL aplica 6 reglas antes de ejecutar cualquier query en Athena:
+
+1. **Sintaxis válida** mediante parsing con sqlglot
+2. **Solo SELECT** (rechaza INSERT, UPDATE, DELETE, DROP, CREATE)
+3. **Whitelist de tablas** (solo `fire_risk.daily_risk`)
+4. **Whitelist de columnas** generada dinámicamente desde el DDL
+5. **Partition pruning obligatorio** cuando se filtra por `time`
+6. **LIMIT inyectado/reemplazado** con `MAX_LIMIT = 1000`
+
+Esto previene UNION attacks, subqueries a tablas del sistema, full scans accidentales sobre todas las particiones, y consultas con cardinalidad descontrolada.
+
+### Catálogo dinámico
+
+El system prompt incluye un catálogo de la tabla generado en tiempo de carga desde:
+
+- `sql/create_table.sql` — columnas, tipos y particiones
+- `configs/config.yaml` — nombres canónicos de las ciudades gallegas
+
+Esto garantiza que el LLM siempre tenga el schema actualizado sin necesidad de mantenerlo sincronizado a mano.
+
+### Evaluación
+
+El dataset `chatbot/eval/dataset.jsonl` contiene 10 preguntas representativas que cubren:
+
+- Agregaciones (AVG, SUM, MAX, COUNT)
+- Filtros numéricos y categóricos
+- Rangos de fechas con partition pruning
+- Trampas conocidas: traducción de niveles de riesgo (alto → high), nombres de ciudad (Coruña → A Coruña), uso de particiones en vez de funciones de fecha
+
+```bash
+python -m chatbot.eval.run_eval
+```
+
+Accuracy actual: **40% exact-match**, **~80% real** descontando variaciones válidas (aliases distintos, orden de cláusulas WHERE, ORDER BY equivalentes).
+
+El 20% restante son fallos reales del modelo (omisión ocasional de columnas relevantes en el SELECT), inherentes al tamaño del LLM (7B parámetros).
+
+### Ejecución del chatbot
+
+```bash
+ollama serve            # Arrancar el servidor local de Ollama
+python -m chatbot.app   # Lanzar la interfaz Gradio
+```
+
+La UI queda disponible en `http://127.0.0.1:7860`.
+
 ## Alertas SNS
 
 Cuando el DAG detecta riesgo **alto**, **muy alto** o **extremo** en alguna ciudad, envía automáticamente una alerta por email vía Amazon SNS con el detalle de las ciudades afectadas y su índice de riesgo.
 
 ## Instalación
+
+### Pipeline ETL
 
 1. Clona el repositorio
 2. Copia `.env.example` a `.env` y rellena tus credenciales AWS:
@@ -178,7 +283,23 @@ Cuando el DAG detecta riesgo **alto**, **muy alto** o **extremo** en alguna ciud
    ```
 4. Accede a la UI en `http://localhost:8080` (admin/admin)
 
+### Chatbot
+
+1. Instala [Ollama](https://ollama.com/) y descarga el modelo:
+   ```bash
+   ollama pull qwen2.5-coder:7b
+   ```
+2. Crea un entorno Python 3.12 (recomendado: conda):
+   ```bash
+   conda create -n firerisk-chatbot python=3.12
+   conda activate firerisk-chatbot
+   pip install -r chatbot/requirements.txt
+   ```
+3. Copia `chatbot/.env.example` a `chatbot/.env` y rellena las credenciales AWS y configuración de Athena.
+
 ## Tests
+
+### Pipeline ETL
 
 ```bash
 pytest tests/ -v
@@ -188,6 +309,20 @@ pytest tests/ -v
 - **Extracción**: Respuestas HTTP, manejo de errores, construcción de URLs
 - **Validación**: Rangos, nulos, valores límite, múltiples localizaciones
 - **Riesgo**: Normalización, pesos, factor estacional, umbrales, integración
+
+### Chatbot
+
+```bash
+pytest chatbot/tests/ -v
+```
+
+34 tests cubriendo:
+- **Validador SQL**: Sintaxis, whitelist, partition pruning, LIMIT, inyección
+- **Catálogo**: Carga dinámica del DDL y de las ciudades del config
+- **Generador**: Generación y limpieza del SQL con LLM mockeado
+- **Executor**: Ejecución de queries con pyathena mockeado
+
+Total: **70 tests** ejecutados en dos suites independientes (entornos Python distintos).
 
 ## Despliegue en Producción (no implementado)
 
