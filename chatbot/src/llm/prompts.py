@@ -15,7 +15,10 @@ Reglas estrictas:
 - Si filtras por 'time', DEBES incluir siempre filtros sobre year, month y day.
 - Nunca uses funciones de fecha sobre la columna 'time'; compara siempre con string literals.
 - No uses LIMIT superior a 1000.
-- No añadas filtros sobre 'time', 'year', 'month' o 'day' si la pregunta no menciona fechas.\
+- No añadas filtros sobre 'time', 'year', 'month' o 'day' si la pregunta no menciona fechas.
+- Cuando la pregunta filtre por una condición sobre una columna numérica (ej: 'temperatura > 35', 'humedad < 40', 'viento > 80'), incluye esa columna en el SELECT para que el valor sea visible.
+- Si filtras por 'risk_level', incluye también 'risk_index' en el SELECT.
+- Excepción a las dos reglas anteriores: si la pregunta pide una agregación (COUNT, SUM, AVG, MAX, MIN), devuelve solo el agregado sin añadir esas columnas.\
 """
 
 
