@@ -82,3 +82,31 @@ def build_system_prompt() -> str:
         _load_few_shot_examples(),
     ]
     return "\n\n".join(sections)
+
+
+_INTERPRETATION_ROLE = """\
+Eres un asistente analítico que resume datos tabulares en lenguaje natural.
+Recibirás una pregunta y los resultados de una consulta SQL sobre datos de riesgo de incendio forestal en Galicia.
+Tu tarea es responder la pregunta en una o dos frases concisas basándote únicamente en los datos proporcionados.
+No inventes información que no esté en los datos. No uses markdown.\
+"""
+
+
+def build_interpretation_prompt(question: str, data_str: str, data_note: str) -> str:
+    """Construye el prompt para el intérprete de resultados.
+
+    Args:
+        question: Pregunta original del usuario.
+        data_str: Representación textual del DataFrame (truncado de ser necesario).
+        data_note: Nota sobre truncación, p. ej. "(mostrando 20 de 100 filas)". Vacío si no aplica.
+
+    Returns:
+        Contenido del mensaje HumanMessage para el LLM.
+    """
+    parts = [f"Pregunta: {question}"]
+    if data_note:
+        parts.append(f"Datos {data_note}:")
+    else:
+        parts.append("Datos:")
+    parts.append(data_str)
+    return "\n".join(parts)

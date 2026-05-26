@@ -3,25 +3,27 @@ import gradio as gr
 
 from chatbot.src.athena.executor import run_query
 from chatbot.src.llm.generator import generate_sql
+from chatbot.src.llm.interpreter import interpret
 from chatbot.src.sql.validator import ValidationError
 
 _EMPTY_DF = pd.DataFrame()
 
 
-def answer(question: str) -> tuple[str, pd.DataFrame]:
+def answer(question: str) -> tuple[str, str, pd.DataFrame]:
     if not question.strip():
-        return "Escribe una pregunta antes de generar el SQL.", _EMPTY_DF
+        return "Escribe una pregunta antes de generar el SQL.", "", _EMPTY_DF
     try:
         sql = generate_sql(question)
     except ValidationError as e:
-        return f"Error de validación: {e}", _EMPTY_DF
+        return f"Error de validación: {e}", "", _EMPTY_DF
     except Exception as e:
-        return f"Error inesperado: {e}", _EMPTY_DF
+        return f"Error inesperado: {e}", "", _EMPTY_DF
     try:
         df = run_query(sql)
-        return sql, df
+        headline = interpret(question, df)
+        return sql, headline, df
     except Exception as e:
-        return sql, pd.DataFrame({"error": [str(e)]})
+        return sql, "", pd.DataFrame({"error": [str(e)]})
 
 
 with gr.Blocks(title="Fire Risk Chatbot") as demo:
@@ -39,6 +41,13 @@ with gr.Blocks(title="Fire Risk Chatbot") as demo:
         btn = gr.Button("Generar SQL", variant="primary")
 
     with gr.Row():
+        headline_output = gr.Textbox(
+            label="Respuesta",
+            interactive=False,
+            lines=2,
+        )
+
+    with gr.Row():
         sql_output = gr.Code(
             label="SQL generado",
             language="sql",
@@ -51,8 +60,8 @@ with gr.Blocks(title="Fire Risk Chatbot") as demo:
             interactive=False,
         )
 
-    btn.click(fn=answer, inputs=question, outputs=[sql_output, results_output])
-    question.submit(fn=answer, inputs=question, outputs=[sql_output, results_output])
+    btn.click(fn=answer, inputs=question, outputs=[sql_output, headline_output, results_output])
+    question.submit(fn=answer, inputs=question, outputs=[sql_output, headline_output, results_output])
 
 
 if __name__ == "__main__":
