@@ -51,11 +51,14 @@ def calculate_fire_risk(df: pd.DataFrame, config: dict) -> pd.DataFrame:
     """
     Calcula el índice de riesgo de incendio forestal (0-1)
     """
-    df = _apply_normalization(df, config)
-    df = _apply_weights(df, config)
-
     weight_columns = list(config["risk"]["weights"].keys())
-    df["risk_index"] = df[weight_columns].sum(axis=1)
+
+    work = df[weight_columns].copy()
+    work = _apply_normalization(work, config)
+    work = _apply_weights(work, config)
+
+    df = df.copy()
+    df["risk_index"] = work[weight_columns].sum(axis=1)
 
     df = _apply_seasonal_factor(df, config)
 
