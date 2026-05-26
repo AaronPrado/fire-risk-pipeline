@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from pathlib import Path
 
 from chatbot.src.schema import catalog
@@ -45,6 +46,17 @@ def _serialize_catalog() -> str:
     return "\n".join(lines)
 
 
+def _build_date_context() -> str:
+    """Inyecta la fecha actual para que el LLM resuelva referencias relativas."""
+    today = date.today().isoformat()
+    return (
+        f"Fecha actual: {today}.\n"
+        f"Cuando la pregunta use referencias relativas (hoy, ayer, este mes, año pasado, "
+        f"último trimestre, etc.), resuélvelas usando esta fecha y convierte el resultado a "
+        f"string literals. Nunca uses funciones de fecha como CURRENT_DATE o YEAR()."
+    )
+
+
 def _load_few_shot_examples() -> str:
     """Carga los ejemplos de few-shot desde el archivo JSONL."""
     lines = ["Ejemplos:"]
@@ -62,6 +74,8 @@ def build_system_prompt() -> str:
     """Construye el system prompt completo para el generador de SQL."""
     sections = [
         _ROLE,
+        "---",
+        _build_date_context(),
         "---",
         _serialize_catalog(),
         "---",
