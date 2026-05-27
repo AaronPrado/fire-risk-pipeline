@@ -48,6 +48,8 @@ def validate_weather_data(data: list[dict]) -> pd.DataFrame:
 
     combined_df = pd.concat(dfs, ignore_index=True)
 
+    combined_df = combined_df.astype({col: "float64" for col in VALIDATION_RULES if col in combined_df.columns})
+
     nulls_before = combined_df.isnull().sum().sum()
     if nulls_before > 0:
         logger.warning(f"Found {nulls_before} null values, dropping affected rows")

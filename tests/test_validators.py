@@ -129,3 +129,34 @@ class TestValidateWeatherData:
         ]
         result = validate_weather_data(data)
         assert len(result) == 1
+
+    def test_numeric_columns_are_float64_when_input_is_integer(self):
+        data = [
+            {
+                "location": "Ourense",
+                "data": {
+                    "daily": {
+                        "time": ["2024-08-10"],
+                        "temperature_2m_max": [38],
+                        "temperature_2m_min": [22],
+                        "relative_humidity_2m_mean": [30],
+                        "precipitation_sum": [0],
+                        "wind_speed_10m_max": [15],
+                        "wind_gusts_10m_max": [25],
+                        "et0_fao_evapotranspiration": [7],
+                    }
+                },
+            }
+        ]
+        result = validate_weather_data(data)
+        numeric_cols = [
+            "temperature_2m_max",
+            "temperature_2m_min",
+            "relative_humidity_2m_mean",
+            "precipitation_sum",
+            "wind_speed_10m_max",
+            "wind_gusts_10m_max",
+            "et0_fao_evapotranspiration",
+        ]
+        for col in numeric_cols:
+            assert result[col].dtype == "float64", f"{col} dtype is {result[col].dtype}, expected float64"
