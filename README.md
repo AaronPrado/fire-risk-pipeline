@@ -190,7 +190,9 @@ El dashboard (`fire-risk.pbix`) se conecta a Athena vía ODBC y muestra:
 
 ## Chatbot Analítico
 
-El módulo `chatbot/` añade una interfaz conversacional sobre los datos de Athena. El usuario hace preguntas en castellano (por ejemplo, *"¿Cuál fue el día más lluvioso de 2024?"*) y el sistema genera SQL, lo ejecuta y devuelve los resultados como tabla.
+El módulo `chatbot/` añade una interfaz conversacional sobre los datos de Athena. El usuario hace preguntas en castellano (por ejemplo, *"¿Cuál fue el día más lluvioso de 2024?"*) y el sistema genera SQL, lo ejecuta, y devuelve los resultados como tabla acompañados de una respuesta en lenguaje natural generada por el mismo LLM.
+
+![Chatbot](docs/chatbot.png)
 
 ### Arquitectura del chatbot
 
@@ -210,7 +212,10 @@ Pregunta en castellano
    run_query() ──> Amazon Athena
         |
         v
-  DataFrame en la UI
+   interpret() ──> Ollama (resumen en lenguaje natural)
+        |
+        v
+  Headline + DataFrame en la UI
 ```
 
 ### Características de seguridad
@@ -221,7 +226,7 @@ El validador SQL aplica 6 reglas antes de ejecutar cualquier query en Athena:
 2. **Solo SELECT** (rechaza INSERT, UPDATE, DELETE, DROP, CREATE)
 3. **Whitelist de tablas** (solo `fire_risk.daily_risk`)
 4. **Whitelist de columnas** generada dinámicamente desde el DDL
-5. **Partition pruning obligatorio** cuando se filtra por `time`
+5. **Partition pruning obligatorio** cuando se filtra por `time`: igualdad (`time = X`) exige `year + month + day`; rango (BETWEEN, >=, <=) exige al menos `year`
 6. **LIMIT inyectado/reemplazado** con `MAX_LIMIT = 1000`
 
 Esto previene UNION attacks, subqueries a tablas del sistema, full scans accidentales sobre todas las particiones, y consultas con cardinalidad descontrolada.
@@ -234,6 +239,28 @@ El system prompt incluye un catálogo de la tabla generado en tiempo de carga de
 - `configs/config.yaml` — nombres canónicos de las ciudades gallegas
 
 Esto garantiza que el LLM siempre tenga el schema actualizado sin necesidad de mantenerlo sincronizado a mano.
+
+### Calidad de la generación SQL
+
+Más allá del validador, el system prompt enseña al LLM tres patrones específicos que mejoran la calidad del SQL generado:
+
+1. **Catalog-first** — antes de calcular una métrica derivada, debe comprobar si ya existe la columna. Ejemplo: la humedad media usa `relative_humidity_2m_mean` directamente; la temperatura media (que no existe como columna) se calcula como `(temperature_2m_max + temperature_2m_min) / 2`. Esto previene la alucinación de columnas inexistentes.
+
+2. **GROUP BY automático** — cuando el SELECT mezcla columnas no-agregadas con funciones agregadas (MAX, AVG, COUNT...), el LLM añade `GROUP BY` con las no-agregadas. Esto previene errores tipo `EXPRESSION_NOT_AGGREGATE` de Athena.
+
+3. **ORDER BY + LIMIT 1 cuando se pide un único resultado** — si la pregunta pide solo un resultado (*"¿qué ciudad tuvo más X?"*), el LLM añade `ORDER BY` por el agregado y `LIMIT 1` para devolverlo directamente en vez de una lista sin ordenar.
+
+### Interpretación en lenguaje natural
+
+Además de la tabla de resultados, el chatbot genera una **respuesta en lenguaje natural** que resume los datos en una o dos frases. La interpretación se hace con el mismo LLM local pasándole la pregunta original y los resultados.
+
+Detalles de implementación:
+
+- **DataFrames grandes**: se truncan a 20 filas antes de enviarlos al LLM, indicando el total en una nota (`mostrando 20 de 100 filas`) para que el modelo sepa que ve un subconjunto.
+- **Resultados vacíos**: se devuelve el mensaje `"La consulta no devolvió resultados."` sin llamar al LLM.
+- **Errores del LLM**: se capturan en silencio y se devuelve cadena vacía. La tabla sigue visible para que el usuario tenga la verdad de los datos.
+
+El headline es **orientativo**: la tabla de resultados es siempre la fuente de verdad.
 
 ### Evaluación
 
@@ -248,9 +275,27 @@ El dataset `chatbot/eval/dataset.jsonl` contiene 10 preguntas representativas qu
 python -m chatbot.eval.run_eval
 ```
 
-Accuracy actual: **40% exact-match**, **~80% real** descontando variaciones válidas (aliases distintos, orden de cláusulas WHERE, ORDER BY equivalentes).
+Accuracy actual: **40% exact-match**, **~80% funcional** descontando variaciones válidas (aliases distintos, orden de cláusulas WHERE, ORDER BY equivalentes, omisión de columnas no esenciales).
 
-El 20% restante son fallos reales del modelo (omisión ocasional de columnas relevantes en el SELECT), inherentes al tamaño del LLM (7B parámetros).
+Los fallos reales del modelo (sobreajuste ocasional a un few-shot, omisión de columnas relevantes en el SELECT) son inherentes al tamaño del LLM (7B parámetros) y se documentan en la sección de limitaciones.
+
+### Limitaciones conocidas
+
+El chatbot usa un modelo local de 7B parámetros (qwen2.5-coder), elegido por privacidad y coste cero. Estas son las limitaciones inherentes documentadas durante el desarrollo:
+
+**Del intérprete en lenguaje natural:**
+
+- **Redondeo con valores próximos**: cuando dos valores son casi iguales tras redondear (ej. 0.301 vs 0.305 → ambos `0.30`), el headline puede atribuir el extremo a la ciudad incorrecta. La tabla exacta debajo siempre tiene los valores correctos.
+- **Síntesis de listas largas**: con 50+ filas el LLM tiende a colapsar la respuesta a los primeros valores en vez de resumir el patrón global.
+- **Confusión de unidades**: el LLM puede inferir mal las unidades cuando no están especificadas en el catálogo (ej. interpretar `wind_speed_10m_max` como m/s cuando los valores reales son km/h). Los datos numéricos en la tabla son siempre correctos; solo el texto del headline puede confundirlas.
+
+**Del generador SQL:**
+
+- **Fechas relativas**: expresiones como *"los últimos 2 años"* o *"este mes"* pueden resolverse con desfase de uno o dos años respecto a la fecha actual, aunque el prompt incluye la fecha de hoy explícita.
+- **Sobreajuste al few-shot**: ocasionalmente el LLM añade filtros que no están en la pregunta si un few-shot similar los incluía (ej. añadir `location = 'Vigo'` a una pregunta sin ciudad porque el ejemplo análogo del prompt sí la tenía).
+- **Ambigüedad de "qué ciudades"**: el LLM puede devolver pares (ciudad, día) en vez de la lista distinta de ciudades. Reformular como *"lista las ciudades únicas que..."* normalmente lo corrige.
+
+**Decisión de diseño:** todas estas limitaciones se aceptan en lugar de mitigarse con código adicional (reglas más complejas en el prompt, pre-cálculo en Python, modelo más grande). La razón es que el chatbot es una demostración educativa del flujo NL→SQL→datos→NL, no un producto. La tabla siempre está disponible como fuente de verdad y compensa los fallos del headline.
 
 ### Ejecución del chatbot
 
@@ -316,13 +361,14 @@ pytest tests/ -v
 pytest chatbot/tests/ -v
 ```
 
-34 tests cubriendo:
+39 tests cubriendo:
 - **Validador SQL**: Sintaxis, whitelist, partition pruning, LIMIT, inyección
 - **Catálogo**: Carga dinámica del DDL y de las ciudades del config
 - **Generador**: Generación y limpieza del SQL con LLM mockeado
+- **Intérprete**: Resumen en lenguaje natural con LLM mockeado, truncación, manejo de errores
 - **Executor**: Ejecución de queries con pyathena mockeado
 
-Total: **70 tests** ejecutados en dos suites independientes (entornos Python distintos).
+Total: **75 tests** ejecutados en dos suites independientes (entornos Python distintos).
 
 ## Despliegue en Producción (no implementado)
 
