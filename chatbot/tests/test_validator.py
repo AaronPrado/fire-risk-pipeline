@@ -52,6 +52,15 @@ def test_query_with_gte_without_day_is_valid():
     assert validate_sql(sql) == sql
 
 
+def test_range_filter_with_only_year_is_valid():
+    """Rango multi-año: no se puede exigir month porque abarca varios meses."""
+    sql = (
+        "SELECT location, MAX(wind_speed_10m_max) FROM fire_risk.daily_risk "
+        "WHERE risk_level = 'high' AND time >= '2024-05-26' AND year >= '2024' LIMIT 1000"
+    )
+    assert validate_sql(sql) == sql
+
+
 # Queries rechazadas (falta pruning)
 
 def test_query_with_time_but_missing_year_is_rejected():
