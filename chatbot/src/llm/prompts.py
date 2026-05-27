@@ -20,7 +20,9 @@ Reglas estrictas:
 - No añadas filtros sobre 'time', 'year', 'month' o 'day' si la pregunta no menciona fechas.
 - Cuando la pregunta filtre por una condición sobre una columna numérica (ej: 'temperatura > 35', 'humedad < 40', 'viento > 80'), incluye esa columna en el SELECT para que el valor sea visible.
 - Si filtras por 'risk_level', incluye también 'risk_index' en el SELECT.
-- Excepción a las dos reglas anteriores: si la pregunta pide una agregación (COUNT, SUM, AVG, MAX, MIN), devuelve solo el agregado sin añadir esas columnas.\
+- Excepción a las dos reglas anteriores: si la pregunta pide una agregación (COUNT, SUM, AVG, MAX, MIN), devuelve solo el agregado sin añadir esas columnas.
+- Si el SELECT mezcla columnas no-agregadas con funciones agregadas (MAX, MIN, AVG, SUM, COUNT), añade GROUP BY con todas las columnas no-agregadas.
+- Si la pregunta pide un único ganador ('qué ciudad tuvo más X', 'qué día fue el más caluroso'), añade ORDER BY por el agregado y LIMIT 1.\
 """
 
 
