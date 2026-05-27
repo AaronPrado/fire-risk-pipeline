@@ -21,7 +21,7 @@ def validate_sql(sql: str) -> str:
     3. Solo se permite la tabla autorizada (fire_risk.daily_risk).
     4. Si hay filtro sobre 'time':
        - Filtro puntual (time = 'X'): exigir year, month y day.
-       - Filtro de rango (BETWEEN, >=, <=, etc.): exigir year y month.
+       - Filtro de rango (BETWEEN, >=, <=, etc.): exigir year.
     5. Solo se permiten columnas autorizadas.
     6. Se inyecta LIMIT MAX_LIMIT si no existe, es mayor a MAX_LIMIT o ilegible.
 
@@ -87,7 +87,7 @@ def _check_partition_pruning(parsed: exp.Expression) -> None:
     Lanza ValidationError si hay filtro temporal sin los filtros de partición obligatorios.
 
     Filtro puntual (time = 'X'): exigir year, month y day.
-    Filtro de rango (BETWEEN, >=, <=, etc.): exigir year y month (day opcional).
+    Filtro de rango (BETWEEN, >=, <=, etc.): exigir year.
     """
     where = parsed.find(exp.Where)
     kind = _time_filter_kind(where)
@@ -95,7 +95,7 @@ def _check_partition_pruning(parsed: exp.Expression) -> None:
     if kind is None:
         return
 
-    required = ["year", "month", "day"] if kind == "point" else ["year", "month"]
+    required = ["year", "month", "day"] if kind == "point" else ["year"]
     missing = [col for col in required if not _has_column_filter(where, col)]
 
     if missing:
