@@ -264,10 +264,11 @@ El headline es **orientativo**: la tabla de resultados es siempre la fuente de v
 
 ### Evaluación
 
-El dataset `chatbot/eval/dataset.jsonl` contiene 10 preguntas representativas que cubren:
+El dataset `chatbot/eval/dataset.jsonl` contiene 12 preguntas representativas que cubren:
 
 - Agregaciones (AVG, SUM, MAX, COUNT)
 - Filtros numéricos y categóricos
+- Patrón "ganador único" (GROUP BY + ORDER BY + LIMIT 1)
 - Rangos de fechas con partition pruning
 - Trampas conocidas: traducción de niveles de riesgo (alto → high), nombres de ciudad (Coruña → A Coruña), uso de particiones en vez de funciones de fecha
 
@@ -275,7 +276,7 @@ El dataset `chatbot/eval/dataset.jsonl` contiene 10 preguntas representativas qu
 python -m chatbot.eval.run_eval
 ```
 
-Accuracy actual: **40% exact-match**, **~80% funcional** descontando variaciones válidas (aliases distintos, orden de cláusulas WHERE, ORDER BY equivalentes, omisión de columnas no esenciales).
+Accuracy actual: **50% exact-match**, **~83% funcional** descontando variaciones válidas (aliases distintos, orden de cláusulas WHERE, ORDER BY equivalentes, omisión de columnas no esenciales).
 
 Los fallos reales del modelo (sobreajuste ocasional a un few-shot, omisión de columnas relevantes en el SELECT) son inherentes al tamaño del LLM (7B parámetros) y se documentan en la sección de limitaciones.
 
