@@ -102,7 +102,10 @@ fire-risk-pipeline/
 │   │   └── sql/validator.py     # Validador de seguridad SQL
 │   ├── tests/                   # Tests con dependencias mockeadas
 │   └── requirements.txt         # Dependencias del módulo
+├── .github/
+│   └── workflows/ci.yml         # Workflow de CI: ruff + pytest en cada PR a main
 ├── fire-risk.pbix               # Dashboard de Power BI
+├── pyproject.toml               # Configuración de ruff (lint + format)
 ├── .env.example                 # Plantilla de variables de entorno (pipeline)
 └── requirements.txt             # Dependencias Python (pipeline)
 ```
@@ -372,6 +375,8 @@ pytest chatbot/tests/ -v
 - **Executor**: Ejecución de queries con pyathena mockeado
 
 Total: **75 tests** ejecutados en dos suites independientes (entornos Python distintos).
+
+Ambas suites se ejecutan automáticamente en GitHub Actions en cada PR a `main`, junto con `ruff check` y `ruff format --check`. El merge queda bloqueado hasta que los dos jobs estén en verde.
 
 ## Despliegue en Producción (no implementado)
 
