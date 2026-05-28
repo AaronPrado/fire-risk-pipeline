@@ -1,9 +1,9 @@
 import pytest
 
-from chatbot.src.sql.validator import validate_sql, ValidationError
-
+from chatbot.src.sql.validator import ValidationError, validate_sql
 
 # Querys válidas
+
 
 def test_query_without_time_filter_is_valid():
     sql = "SELECT location, AVG(risk_index) FROM fire_risk.daily_risk GROUP BY location LIMIT 100"
@@ -63,19 +63,16 @@ def test_range_filter_with_only_year_is_valid():
 
 # Queries rechazadas (falta pruning)
 
+
 def test_query_with_time_but_missing_year_is_rejected():
-    sql = (
-        "SELECT * FROM fire_risk.daily_risk "
-        "WHERE time = '2025-08-15' AND month='08' AND day='15'"
-    )
+    sql = "SELECT * FROM fire_risk.daily_risk WHERE time = '2025-08-15' AND month='08' AND day='15'"
     with pytest.raises(ValidationError, match="year"):
         validate_sql(sql)
 
 
 def test_query_with_time_but_missing_month_is_rejected():
     sql = (
-        "SELECT * FROM fire_risk.daily_risk "
-        "WHERE time = '2025-08-15' AND year='2025' AND day='15'"
+        "SELECT * FROM fire_risk.daily_risk WHERE time = '2025-08-15' AND year='2025' AND day='15'"
     )
     with pytest.raises(ValidationError, match="month"):
         validate_sql(sql)
@@ -104,6 +101,7 @@ def test_error_message_mentions_missing_partitions():
 
 # LIMIT injection
 
+
 def test_limit_is_injected_when_missing():
     sql = "SELECT location FROM fire_risk.daily_risk"
     assert validate_sql(sql) == sql + " LIMIT 1000"
@@ -116,6 +114,7 @@ def test_limit_above_max_is_replaced():
 
 # SQL inválido
 
+
 def test_invalid_sql_syntax_is_rejected():
     sql = "("
     with pytest.raises(ValidationError, match="SQL no válido"):
@@ -123,6 +122,7 @@ def test_invalid_sql_syntax_is_rejected():
 
 
 # Prompt injection
+
 
 def test_injection_multiple_statements_is_rejected():
     sql = "SELECT location FROM fire_risk.daily_risk LIMIT 10; DROP TABLE fire_risk.daily_risk"

@@ -9,17 +9,17 @@ _DDL_PATH = _REPO_ROOT / "sql" / "create_table.sql"
 _CONFIG_PATH = _REPO_ROOT / "configs" / "config.yaml"
 
 _DESCRIPTIONS: dict[str, str] = {
-    "time": "Fecha de la medición. Formato YYYY-MM-DD. Comparar siempre como string literal, nunca con funciones de fecha.",
+    "time": "Fecha de la medición. Formato YYYY-MM-DD. Comparar siempre como string literal, nunca con funciones de fecha.",  # noqa: E501
     "location": "Ciudad gallega. Valores válidos: {cities}.",
     "temperature_2m_max": "Temperatura máxima diaria a 2 metros (°C).",
     "temperature_2m_min": "Temperatura mínima diaria a 2 metros (°C).",
-    "relative_humidity_2m_mean": "Humedad relativa media diaria (%). A mayor humedad, menor riesgo.",
+    "relative_humidity_2m_mean": "Humedad relativa media diaria (%). A mayor humedad, menor riesgo.",  # noqa: E501
     "precipitation_sum": "Precipitación total diaria (mm). A mayor precipitación, menor riesgo.",
     "wind_speed_10m_max": "Velocidad máxima del viento a 10 metros (km/h).",
     "wind_gusts_10m_max": "Velocidad máxima de las ráfagas a 10 metros (km/h).",
-    "et0_fao_evapotranspiration": "Evapotranspiración de referencia FAO (mm). Mide la sequedad del suelo.",
+    "et0_fao_evapotranspiration": "Evapotranspiración de referencia FAO (mm). Mide la sequedad del suelo.",  # noqa: E501
     "risk_index": "Índice de riesgo de incendio normalizado entre 0 y 1.",
-    "risk_level": "Nivel de riesgo categórico. Valores en inglés: 'low', 'moderate', 'high', 'very_high', 'extreme'.",
+    "risk_level": "Nivel de riesgo categórico. Valores en inglés: 'low', 'moderate', 'high', 'very_high', 'extreme'.",  # noqa: E501
 }
 
 _PARTITION_DESCRIPTIONS: dict[str, str] = {
@@ -29,18 +29,23 @@ _PARTITION_DESCRIPTIONS: dict[str, str] = {
 }
 
 _NOTES: list[str] = [
-    "Filtros sobre 'time' DEBEN incluir siempre filtros paralelos sobre las particiones year, month y day para evitar full scan.",
-    "Ejemplo correcto: WHERE time BETWEEN '2025-08-01' AND '2025-08-31' AND year='2025' AND month='08'.",
-    "risk_level está en inglés. Mapping: bajo=low, moderado=moderate, alto=high, muy alto=very_high, extremo=extreme.",
-    "location distingue mayúsculas y tildes: usar exactamente 'A Coruña', 'Santiago de Compostela', etc.",
+    "Filtros sobre 'time' DEBEN incluir siempre filtros paralelos sobre las particiones year, month y day para evitar full scan.",  # noqa: E501
+    "Ejemplo correcto: WHERE time BETWEEN '2025-08-01' AND '2025-08-31' AND year='2025' AND month='08'.",  # noqa: E501
+    "risk_level está en inglés. Mapping: bajo=low, moderado=moderate, alto=high, muy alto=very_high, extremo=extreme.",  # noqa: E501
+    "location distingue mayúsculas y tildes: usar exactamente 'A Coruña', 'Santiago de Compostela', etc.",  # noqa: E501
 ]
 
 _RISK_LEVEL_MAPPING: dict[str, str] = {
-    "bajo": "low", "baja": "low",
-    "moderado": "moderate", "moderada": "moderate",
-    "alto": "high", "alta": "high",
-    "muy alto": "very_high", "muy alta": "very_high",
-    "extremo": "extreme", "extrema": "extreme",
+    "bajo": "low",
+    "baja": "low",
+    "moderado": "moderate",
+    "moderada": "moderate",
+    "alto": "high",
+    "alta": "high",
+    "muy alto": "very_high",
+    "muy alta": "very_high",
+    "extremo": "extreme",
+    "extrema": "extreme",
 }
 
 

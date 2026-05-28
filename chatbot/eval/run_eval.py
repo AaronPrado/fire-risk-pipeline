@@ -1,6 +1,5 @@
 import json
 import re
-import sys
 from pathlib import Path
 
 from chatbot.src.llm.generator import generate_sql
@@ -52,7 +51,9 @@ def main() -> None:
         results.append(result)
 
         status = "✓" if result["passed"] else "✗"
-        truncated = entry["question"][:70] + "..." if len(entry["question"]) > 70 else entry["question"]
+        truncated = (
+            entry["question"][:70] + "..." if len(entry["question"]) > 70 else entry["question"]
+        )
         print(f"[{i:02d}] {status} {truncated}")
 
         if not result["passed"]:

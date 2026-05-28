@@ -2,7 +2,7 @@ import pandas as pd
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from chatbot.src.llm.client import get_llm
-from chatbot.src.llm.prompts import build_interpretation_prompt, _INTERPRETATION_ROLE
+from chatbot.src.llm.prompts import _INTERPRETATION_ROLE, build_interpretation_prompt
 
 _MAX_ROWS = 20
 _DEFAULT_EMPTY = "La consulta no devolvió resultados."

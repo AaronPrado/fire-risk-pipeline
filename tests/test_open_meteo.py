@@ -1,13 +1,14 @@
-from unittest.mock import patch, Mock
-import requests
-import pytest
-from src.extractors.open_meteo import extract_open_meteo, extract_all_open_meteo
+from unittest.mock import Mock, patch
 
+import pytest
+import requests
+
+from src.extractors.open_meteo import extract_all_open_meteo, extract_open_meteo
 
 # Tests for extract_open_meteo
 
-class TestExtractOpenMeteo:
 
+class TestExtractOpenMeteo:
     @patch("src.extractors.open_meteo.requests.get")
     def test_returns_json_on_success(self, mock_get):
         mock_response = Mock()
@@ -35,7 +36,9 @@ class TestExtractOpenMeteo:
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
-        extract_open_meteo(43.36, -8.41, ["temperature_2m_max", "precipitation_sum"], "Europe/Madrid")
+        extract_open_meteo(
+            43.36, -8.41, ["temperature_2m_max", "precipitation_sum"], "Europe/Madrid"
+        )
 
         called_url = mock_get.call_args[0][0]
         assert "latitude=43.36" in called_url
@@ -46,8 +49,8 @@ class TestExtractOpenMeteo:
 
 # Tests for extract_all_open_meteo
 
-class TestExtractAllOpenMeteo:
 
+class TestExtractAllOpenMeteo:
     @pytest.fixture
     def config(self):
         return {
