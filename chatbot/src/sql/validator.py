@@ -1,13 +1,16 @@
+import re
+
 import sqlglot
 import sqlglot.expressions as exp
-import re
 
 from chatbot.src.schema import catalog
 
 MAX_LIMIT = 1000
 
+
 class ValidationError(Exception):
     """Se lanza cuando una query SQL no pasa la validación"""
+
     pass
 
 
@@ -48,8 +51,7 @@ def _parse(sql: str) -> exp.Expression:
 
     if len(statements) > 1:
         raise ValidationError(
-            f"Solo se permite una sentencia por query. "
-            f"Se detectaron {len(statements)} sentencias."
+            f"Solo se permite una sentencia por query. Se detectaron {len(statements)} sentencias."
         )
 
     return statements[0]
@@ -111,8 +113,7 @@ def _check_select_only(parsed: exp.Expression) -> None:
     """Rechaza cualquier statement que no sea SELECT."""
     if not isinstance(parsed, exp.Select):
         raise ValidationError(
-            f"Solo se permiten consultas SELECT. "
-            f"Statement recibido: {type(parsed).__name__}."
+            f"Solo se permiten consultas SELECT. Statement recibido: {type(parsed).__name__}."
         )
 
 
@@ -125,17 +126,15 @@ def _check_table_whitelist(parsed: exp.Expression) -> None:
         full_name = f"{table.db}.{table.name}" if table.db else table.name
         if full_name not in (allowed, allowed_short):
             raise ValidationError(
-                f"Tabla no autorizada: '{full_name}'. "
-                f"Solo se permite: '{allowed}'."
+                f"Tabla no autorizada: '{full_name}'. Solo se permite: '{allowed}'."
             )
 
 
 def _check_column_whitelist(parsed: exp.Expression) -> None:
     """Rechaza queries que referencien columnas no autorizadas."""
-    valid_columns = (
-        {c["name"] for c in catalog.TABLE["columns"]}
-        | {p["name"] for p in catalog.TABLE["partitions"]}
-    )
+    valid_columns = {c["name"] for c in catalog.TABLE["columns"]} | {
+        p["name"] for p in catalog.TABLE["partitions"]
+    }
     select_aliases = {alias.alias.lower() for alias in parsed.find_all(exp.Alias) if alias.alias}
 
     for col in parsed.find_all(exp.Column):

@@ -1,5 +1,7 @@
 # Fire Risk Pipeline
 
+[![CI](https://github.com/AaronPrado/fire-risk-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/AaronPrado/fire-risk-pipeline/actions/workflows/ci.yml)
+
 Pipeline ETL construido con Apache Airflow que extrae datos meteorológicos diarios de la API Open-Meteo, calcula el índice de riesgo de incendio forestal para las 7 ciudades gallegas y almacena los resultados en AWS S3 siguiendo una arquitectura medallion (Bronze/Silver/Gold). Los datos se consultan con Amazon Athena, se visualizan en un dashboard interactivo de Power BI, y pueden consultarse en lenguaje natural mediante un chatbot con LLM local.
 
 Proyecto complementario a [forestfire-cv-detection](https://github.com/AaronPrado/forestfire-cv-detection) (YOLOv8 + MLflow + FastAPI).

@@ -1,5 +1,5 @@
-import pandas as pd
 import gradio as gr
+import pandas as pd
 
 from chatbot.src.athena.executor import run_query
 from chatbot.src.llm.generator import generate_sql
@@ -61,7 +61,9 @@ with gr.Blocks(title="Fire Risk Chatbot") as demo:
         )
 
     btn.click(fn=answer, inputs=question, outputs=[sql_output, headline_output, results_output])
-    question.submit(fn=answer, inputs=question, outputs=[sql_output, headline_output, results_output])
+    question.submit(
+        fn=answer, inputs=question, outputs=[sql_output, headline_output, results_output]
+    )
 
 
 if __name__ == "__main__":

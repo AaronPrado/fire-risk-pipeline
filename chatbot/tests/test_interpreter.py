@@ -1,5 +1,6 @@
-import pandas as pd
 from unittest.mock import MagicMock, patch
+
+import pandas as pd
 
 from chatbot.src.llm.interpreter import interpret
 

@@ -1,66 +1,78 @@
 import pandas as pd
 import pytest
-from src.transformers.validators import _apply_range_filters, validate_weather_data
 
+from src.transformers.validators import _apply_range_filters, validate_weather_data
 
 # Tests for _apply_range_filters
 
-class TestApplyRangeFilters:
 
+class TestApplyRangeFilters:
     def test_keeps_valid_rows(self):
-        df = pd.DataFrame({
-            "temperature_2m_max": [25.0, 30.0],
-            "relative_humidity_2m_mean": [50.0, 70.0],
-            "precipitation_sum": [5.0, 10.0],
-        })
+        df = pd.DataFrame(
+            {
+                "temperature_2m_max": [25.0, 30.0],
+                "relative_humidity_2m_mean": [50.0, 70.0],
+                "precipitation_sum": [5.0, 10.0],
+            }
+        )
         result = _apply_range_filters(df)
         assert len(result) == 2
 
     def test_drops_rows_with_temperature_out_of_range(self):
-        df = pd.DataFrame({
-            "temperature_2m_max": [25.0, 55.0, -25.0],
-            "relative_humidity_2m_mean": [50.0, 50.0, 50.0],
-        })
+        df = pd.DataFrame(
+            {
+                "temperature_2m_max": [25.0, 55.0, -25.0],
+                "relative_humidity_2m_mean": [50.0, 50.0, 50.0],
+            }
+        )
         result = _apply_range_filters(df)
         assert len(result) == 1
         assert result["temperature_2m_max"].iloc[0] == 25.0
 
     def test_drops_rows_with_negative_precipitation(self):
-        df = pd.DataFrame({
-            "precipitation_sum": [5.0, -1.0, 0.0],
-        })
+        df = pd.DataFrame(
+            {
+                "precipitation_sum": [5.0, -1.0, 0.0],
+            }
+        )
         result = _apply_range_filters(df)
         assert len(result) == 2
 
     def test_allows_unlimited_upper_bound(self):
         # precipitation_sum has max: None → no upper limit
-        df = pd.DataFrame({
-            "precipitation_sum": [0.0, 500.0, 9999.0],
-        })
+        df = pd.DataFrame(
+            {
+                "precipitation_sum": [0.0, 500.0, 9999.0],
+            }
+        )
         result = _apply_range_filters(df)
         assert len(result) == 3
 
     def test_ignores_columns_not_in_rules(self):
-        df = pd.DataFrame({
-            "unknown_column": [-999, 999],
-            "temperature_2m_max": [20.0, 25.0],
-        })
+        df = pd.DataFrame(
+            {
+                "unknown_column": [-999, 999],
+                "temperature_2m_max": [20.0, 25.0],
+            }
+        )
         result = _apply_range_filters(df)
         assert len(result) == 2
 
     def test_boundary_values_are_included(self):
-        df = pd.DataFrame({
-            "temperature_2m_max": [-20.0, 50.0],
-            "relative_humidity_2m_mean": [0.0, 100.0],
-        })
+        df = pd.DataFrame(
+            {
+                "temperature_2m_max": [-20.0, 50.0],
+                "relative_humidity_2m_mean": [0.0, 100.0],
+            }
+        )
         result = _apply_range_filters(df)
         assert len(result) == 2
 
 
 # Tests for validate_weather_data
 
-class TestValidateWeatherData:
 
+class TestValidateWeatherData:
     @pytest.fixture
     def raw_api_data(self):
         """Simulates the list[dict] structure coming from extract_all_open_meteo."""
@@ -159,4 +171,6 @@ class TestValidateWeatherData:
             "et0_fao_evapotranspiration",
         ]
         for col in numeric_cols:
-            assert result[col].dtype == "float64", f"{col} dtype is {result[col].dtype}, expected float64"
+            assert result[col].dtype == "float64", (
+                f"{col} dtype is {result[col].dtype}, expected float64"
+            )
