@@ -48,6 +48,11 @@ Local demo on MinIO, no AWS credentials required:
 make demo
 ```
 
+Requires Docker and Python 3.11+. It starts MinIO, builds its own virtual
+environment and writes the partitioned Gold layer to the local bucket.
+Console at <http://localhost:9001> (`demo` / `demo12345`); `make demo-down`
+tears everything down.
+
 Full AWS pipeline, chatbot, Athena and Power BI setup, IAM permissions, LLM
 evaluation and known limitations: **[docs/architecture.md](docs/architecture.md)**
 (in Spanish).

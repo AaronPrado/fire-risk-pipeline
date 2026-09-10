@@ -14,9 +14,12 @@ from src.utils.config import load_config
 
 if __name__ == "__main__":
     config = load_config(f"{project_root}/configs/config.yaml")
-    s3 = boto3.client("s3")
+    s3 = boto3.client("s3", endpoint_url=os.getenv("AWS_ENDPOINT_URL"))
+    bucket = os.getenv("S3_BUCKET", config["aws"]["bucket"])
+    start_date = os.getenv("START_DATE", "2023-01-01")
+    end_date = os.getenv("END_DATE", "2026-02-01")
 
-    data = extract_all_open_meteo_range(config, "2023-01-01", "2026-02-01")
+    data = extract_all_open_meteo_range(config, start_date, end_date)
     validated_data = validate_weather_data(data)
     risk_data = calculate_fire_risk(validated_data, config)
 
@@ -26,5 +29,5 @@ if __name__ == "__main__":
         parquet_buffer = BytesIO()
         day_df.to_parquet(parquet_buffer)
         parquet_buffer.seek(0)
-        s3.put_object(Bucket=config["aws"]["bucket"], Key=hive_key, Body=parquet_buffer.getvalue())
+        s3.put_object(Bucket=bucket, Key=hive_key, Body=parquet_buffer.getvalue())
         print(f"Uploaded {hive_key}")
