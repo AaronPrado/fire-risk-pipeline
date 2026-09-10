@@ -2,23 +2,26 @@
 
 [![CI](https://github.com/AaronPrado/fire-risk-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/AaronPrado/fire-risk-pipeline/actions/workflows/ci.yml)
 
-Pipeline ETL que calcula a diario el índice de riesgo de incendio forestal en las
-siete ciudades gallegas a partir de datos meteorológicos, y permite consultarlo
-en un dashboard o preguntándole en castellano a un chatbot.
+*[Versión en castellano](README.es.md)*
+
+Daily ETL pipeline computing a forest-fire risk index for the seven cities of
+Galicia (Spain) from weather data, queryable through a BI dashboard or by asking
+questions in plain language to a chatbot.
 
 ![Dashboard](docs/dashboard.png)
 
-## Resultados
+## Results
 
-- **8.064 registros** históricos (7 ciudades × ~1.152 días, 2023-2026) en un data
-  lake medallion sobre S3 con particionado Hive.
-- Índice validado contra el [IRDI de la Xunta de Galicia](https://mediorural.xunta.gal/es/temas/defensa-monte/irdi):
-  los patrones estacionales y geográficos coinciden con los incendios reales de 2024.
-- **Chatbot text-to-SQL** con LLM local: valida cada query con 6 reglas de seguridad
-  (solo SELECT, whitelist de tablas y columnas, partition pruning obligatorio, LIMIT
-  inyectado) y alcanza ~83% de acierto funcional sobre un dataset de evaluación propio.
-- **75 tests** en dos suites, más `ruff`, ejecutados en cada PR. El merge queda
-  bloqueado hasta que ambos jobs estén en verde.
+- **8,064 historical records** (7 cities × ~1,152 days, 2023-2026) in a medallion
+  data lake on S3 with Hive partitioning.
+- Index validated against the Xunta de Galicia's official IRDI: seasonal and
+  geographic patterns match the wildfires actually recorded in 2024.
+- **Text-to-SQL chatbot** running a local LLM: every generated query passes six
+  security rules (SELECT-only, table and column whitelists, mandatory partition
+  pruning, injected LIMIT), reaching ~83% functional accuracy on a custom
+  evaluation dataset.
+- **75 tests** across two suites, plus `ruff`, run on every PR. Merging is blocked
+  until both jobs are green.
 
 ![Chatbot](docs/chatbot.png)
 
@@ -27,32 +30,32 @@ en un dashboard o preguntándole en castellano a un chatbot.
 Python · Apache Airflow · AWS S3 / Athena / SNS / Glue · Power BI · Docker ·
 LangChain + Ollama (qwen2.5-coder:7b) · Gradio · sqlglot · pytest
 
-## Arquitectura
+## Architecture
 
 ```
 Open-Meteo API → [Airflow DAG] → S3 Bronze → Silver → Gold → SNS Alert
                                                 │
                                              Athena
                                              /     \
-                                        Power BI   Chatbot (LLM local)
+                                        Power BI   Chatbot (local LLM)
 ```
 
-## Ejecución
+## Running it
 
-Demo local sobre MinIO, sin credenciales de AWS:
+Local demo on MinIO, no AWS credentials required:
 
 ```bash
 make demo
 ```
 
-Pipeline completo contra AWS, chatbot, configuración de Athena y Power BI,
-permisos IAM, evaluación del LLM y limitaciones conocidas:
-**[docs/architecture.md](docs/architecture.md)**.
+Full AWS pipeline, chatbot, Athena and Power BI setup, IAM permissions, LLM
+evaluation and known limitations: **[docs/architecture.md](docs/architecture.md)**
+(in Spanish).
 
-Proyecto complementario a
+Companion project to
 [forestfire-cv-detection](https://github.com/AaronPrado/forestfire-cv-detection)
 (YOLOv8 + MLflow + FastAPI).
 
-## Licencia
+## License
 
 MIT
