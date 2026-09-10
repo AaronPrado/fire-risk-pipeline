@@ -23,3 +23,11 @@ eval:
 # Requiere env: firerisk-chatbot (Python 3.12)
 run:
 	python -m chatbot.app
+
+.PHONY: demo
+demo:  ## Levanta el pipeline sobre MinIO con datos de muestra, sin credenciales AWS
+	docker compose -f docker-compose.demo.yml up -d
+	AWS_ENDPOINT_URL=http://localhost:9000 \
+	AWS_ACCESS_KEY_ID=demo AWS_SECRET_ACCESS_KEY=demo12345 \
+	AWS_DEFAULT_REGION=eu-west-1 S3_BUCKET=fire-risk-demo \
+	python -m scripts.demo_seed
