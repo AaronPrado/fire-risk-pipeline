@@ -6,7 +6,7 @@ Pipeline ETL construido con Apache Airflow que extrae datos meteorológicos diar
 
 Proyecto complementario a [forestfire-cv-detection](https://github.com/AaronPrado/forestfire-cv-detection) (YOLOv8 + MLflow + FastAPI).
 
-![Dashboard](docs/dashboard.png)
+![Dashboard](dashboard.png)
 
 ## Stack Tecnológico
 
@@ -197,7 +197,7 @@ El dashboard (`fire-risk.pbix`) se conecta a Athena vía ODBC y muestra:
 
 El módulo `chatbot/` añade una interfaz conversacional sobre los datos de Athena. El usuario hace preguntas en castellano (por ejemplo, *"¿Cuál fue el día más lluvioso de 2024?"*) y el sistema genera SQL, lo ejecuta, y devuelve los resultados como tabla acompañados de una respuesta en lenguaje natural generada por el mismo LLM.
 
-![Chatbot](docs/chatbot.png)
+![Chatbot](chatbot.png)
 
 ### Arquitectura del chatbot
 
